@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kolorowa tabela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EBF2; --card:#FFFFFF; --ink:#181C28; --muted:#667085; --line:#D3D9E4;
+  --empty:#F3F5F9; --accent:#3552D6; --accent-ink:#FFFFFF; --danger:#D23B3B; --ok:#1E8E5A;
+  --shadow:0 1px 2px rgba(20,28,60,.06);
+  --font:'Schibsted Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10131B; --card:#191D28; --ink:#EDEFF6; --muted:#98A0B5; --line:#2C3244;
+    --empty:#202533; --accent:#7C93FF; --accent-ink:#0E1220; --danger:#FF7A7A; --ok:#5BD79B; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10131B; --card:#191D28; --ink:#EDEFF6; --muted:#98A0B5; --line:#2C3244;
+  --empty:#202533; --accent:#7C93FF; --accent-ink:#0E1220; --danger:#FF7A7A; --ok:#5BD79B; --shadow:none;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.4}
+body.painting .cell{cursor:crosshair}
+body.painting .cell{user-select:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.wrap{max-width:1100px;margin:0 auto;padding:28px 16px 48px}
+h1{margin:0 0 14px;font-size:30px;font-weight:700;letter-spacing:-.02em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+
+/* logowanie / wczytywanie */
+.loader{padding:14px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
+.loader .field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:220px}
+.loader label{font-size:13px;font-weight:600}
+.loader input,.loader select{height:38px;border:1px solid var(--line);border-radius:9px;background:var(--empty);padding:0 12px}
+.loader select{padding-right:8px}
+#msg{flex-basis:100%;margin:0;min-height:1.2em;font-size:13px;color:var(--muted)}
+#msg.err{color:var(--danger)}
+#msg.ok{color:var(--ok)}
+
+.btn{border-radius:9px;padding:8px 14px;border:1px solid var(--line);background:var(--card);font-weight:500;display:inline-flex;align-items:center;justify-content:center}
+.btn:hover{background:var(--empty)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+
+/* pędzel */
+.tools{padding:14px 16px;margin-bottom:14px}
+.tools-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;justify-content:space-between;margin-bottom:12px}
+.tools h2{margin:0;font-size:15px;font-weight:600}
+.hint{color:var(--muted);font-size:13px}
+.pal{display:flex;flex-wrap:wrap;gap:10px 12px}
+.pal-item{display:flex;flex-direction:column;gap:4px;width:84px}
+.sw{height:34px;border-radius:8px;border:2px solid transparent;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+.pal-label{width:100%;border:1px solid transparent;border-radius:6px;background:transparent;font-size:12.5px;padding:2px 4px;text-align:center;color:var(--muted)}
+.pal-label:hover{border-color:var(--line)}
+.pal-label:focus{border-color:var(--accent);color:var(--ink);outline:none}
+.eraser{height:34px;border-radius:8px;border:1px dashed var(--muted);background:transparent;font-size:13px}
+.eraser[aria-pressed="true"]{border:2px solid var(--ink);background:var(--empty)}
+.opts{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:12px}
+
+/* tabela */
+.table-card{overflow:hidden}
+.scroll{overflow-x:auto}
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:640px}
+th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:0;vertical-align:stretch}
+tr>*:last-child{border-right:0}
+thead th{background:var(--card);text-align:left;font-weight:600}
+tbody tr:last-child>*{border-bottom:0}
+.namecol{position:sticky;left:0;z-index:2;background:var(--card);width:230px;min-width:200px}
+.namewrap,.head{display:flex;align-items:center}
+input.name{flex:1;min-width:0;border:0;background:transparent;padding:0 12px;height:56px;font-weight:600;font-size:15px}
+input.coltitle{flex:1;min-width:0;border:0;background:transparent;padding:0 12px;height:46px;font-weight:600}
+input.name:focus,input.coltitle:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--empty)}
+th.namecol input.coltitle{color:var(--muted)}
+.x{border:0;background:transparent;color:var(--muted);width:30px;height:30px;border-radius:8px;margin-right:6px;font-size:18px;line-height:1;opacity:0;transition:opacity .15s;flex:none}
+tr:hover .x,th:hover .x,.x:focus-visible,.x.armed{opacity:1}
+.x:hover{background:var(--empty);color:var(--danger)}
+.x.armed{width:auto;padding:0 8px;font-size:12.5px;color:var(--danger);font-weight:600}
+@media (hover:none){.x{opacity:.7}}
+
+.cellwrap{position:relative;height:56px;min-width:140px}
+.cell{position:absolute;inset:0;width:100%;height:100%;border:0;margin:0;padding:6px 10px;background:var(--empty);display:flex;align-items:center;justify-content:center;text-align:center;font-weight:600;font-size:14px;overflow:hidden;border-radius:0}
+.cell:hover{filter:brightness(.96)}
+.cell .txt{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell:not(.has-color){background-image:repeating-linear-gradient(135deg,transparent 0 9px,rgba(127,127,127,.07) 9px 10px)}
+.pen{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:0;background:rgba(255,255,255,.88);color:#222;font-size:13px;opacity:0;transition:opacity .15s;box-shadow:0 1px 3px rgba(0,0,0,.25);z-index:1}
+.cellwrap:hover .pen,.pen:focus-visible{opacity:1}
+@media (hover:none){.pen{opacity:.85}}
+.addcol{width:56px;min-width:56px;text-align:center}
+.addcol button{width:100%;height:46px;border:0;background:transparent;font-size:20px;color:var(--muted)}
+.addcol button:hover{background:var(--empty);color:var(--accent)}
+.addrow{display:block;width:100%;border:0;border-top:1px solid var(--line);background:transparent;padding:12px;color:var(--muted);font-weight:500}
+.addrow:hover{background:var(--empty);color:var(--accent)}
+.foot-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;color:var(--muted);font-size:13px;flex-wrap:wrap}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+
+/* edytor komórki */
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);padding:0;width:min(440px,calc(100vw - 24px));box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(10,14,28,.5)}
+.ed{padding:20px}
+.ed h2{margin:0 0 14px;font-size:17px;line-height:1.25}
+.ed h2 small{display:block;color:var(--muted);font-weight:400;font-size:13px;margin-top:2px}
+.lbl{font-size:13px;font-weight:600;margin:14px 0 6px}
+.sw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sw-grid .sw{height:40px;width:100%;font-size:11.5px;font-weight:600;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row input[type=color]{width:42px;height:34px;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--card)}
+.ed input[type=text]{width:100%;height:38px;border:1px solid var(--line);border-radius:9px;background:var(--empty);padding:0 12px}
+.dfoot{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
+
+@media print{.loader,.tools,.foot-bar,.x,.pen,.addcol,.addrow{display:none!important}body{background:#fff}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Posłowie</h1>
+
+  <form id="f" class="card loader">
+    <div class="field" style="flex:0 1 210px;min-width:170px">
+      <label for="file">Plik</label>
+      <select id="file"></select>
+    </div>
+    <div class="field">
+      <label for="token">Token dostępu GitHub</label>
+      <input id="token" type="password" autocomplete="off" required>
+    </div>
+    <button type="submit" id="load" class="btn primary">Pobierz tabelę</button>
+    <button type="button" id="save" class="btn" hidden>Zapisz na GitHubie</button>
+    <p id="msg" role="status"></p>
+  </form>
+
+  <section class="card tools" aria-label="Pędzel">
+    <div class="tools-top">
+      <h2>Pędzel</h2>
+      <span class="hint" id="hint"></span>
+    </div>
+    <div class="pal" id="pal"></div>
+    <div class="opts">
+      <input type="checkbox" id="showLabels">
+      <label for="showLabels">Pokaż w pustych komórkach nazwę koloru</label>
+    </div>
+  </section>
+
+  <section class="card table-card">
+    <div class="scroll"><table id="tbl"></table></div>
+    <button class="addrow" id="addRow" type="button">+ Dodaj osobę</button>
+  </section>
+
+  <div class="foot-bar">
+    <span id="status">Tabela jest pusta. Pobierz dane z GitHuba albo zacznij dodawać osoby.</span>
+  </div>
+</div>
+
+<dialog id="ed">
+  <div class="ed">
+    <h2 id="edTitle"></h2>
+    <div class="lbl">Kolor</div>
+    <div class="sw-grid" id="edSw"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="row" style="gap:8px">Własny kolor <input type="color" id="edCustom" value="#3552d6"></label>
+      <button type="button" class="btn" id="edNone">Bez koloru</button>
+    </div>
+    <div class="lbl">Tekst lub emoji</div>
+    <input type="text" id="edText" maxlength="60" placeholder="np. ✅ albo „po 18:00”">
+    <div class="dfoot">
+      <button type="button" class="btn" id="edClear">Wyczyść komórkę</button>
+      <button type="button" class="btn primary" id="edDone">Gotowe</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  'use strict';
+
+  /* =====================================================
+     Konfiguracja
+     ===================================================== */
+  var REPO = 'MieszkoP/MemberOfPPPrivate';
+  // Trzy predefiniowane pliki w repozytorium. Zmień ścieżki i nazwy wyświetlane tutaj.
+  var FILES = [
+    {path:'dane.js',  label:'Lista 1 (dane.js)'},
+    {path:'dane2.js', label:'Lista 2 (dane2.js)'},
+    {path:'dane3.js', label:'Lista 3 (dane3.js)'}
+  ];
+  function fileLabel(path){
+    var f = FILES.find(function(x){ return x.path === path; });
+    return f ? f.label : path;
+  }
+
+  /* =====================================================
+     Pomocnicze
+     ===================================================== */
+  var $ = function(id){ return document.getElementById(id); };
+  var uid = function(){ return Math.random().toString(36).slice(2, 9); };
+  var HEX = /^#[0-9a-f]{6}$/i;
+
+  function h(tag, attrs){
+    var e = document.createElement(tag);
+    attrs = attrs || {};
+    Object.keys(attrs).forEach(function(k){
+      var v = attrs[k];
+      if(k === 'class') e.className = v;
+      else if(k.slice(0,2) === 'on') e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v);
+    });
+    for(var i = 2; i < arguments.length; i++){
+      [].concat(arguments[i]).forEach(function(c){
+        if(c !== null && c !== undefined && c !== false) e.append(c);
+      });
+    }
+    return e;
+  }
+
+  function contrast(hex){
+    if(!HEX.test(hex || '')) return '';
+    var n = parseInt(hex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+    return (0.299*r + 0.587*g + 0.114*b) > 150 ? '#111' : '#fff';
+  }
+
+  function arm(btn, armedText, action){
+    var t, orig = btn.textContent;
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if(btn.dataset.armed){ clearTimeout(t); disarm(); action(); return; }
+      btn.dataset.armed = '1'; btn.textContent = armedText; btn.classList.add('armed');
+      t = setTimeout(disarm, 2500);
+    });
+    function disarm(){ delete btn.dataset.armed; btn.textContent = orig; btn.classList.remove('armed'); }
+  }
+
+  /* =====================================================
+     Stan
+     =====================================================
+     state.cols    = [{id, title}]
+     state.rows    = [{id, name, cells:{ idKolumny: {color,text} }}]
+     state.palette = [{color, label}]
+  */
+  function defaultPalette(){
+  return [
+    {color:'#8A93A6', label:'Brak działań'},
+    {color:'#3C8DDE', label:'Wysłany e-mail'},
+    {color:'#F2B134', label:'Odzew na e-mail'},
+    {color:'#EE7B3A', label:'Umówione spotkanie'},
+    {color:'#2FB67C', label:'Odbyte spotkanie'}
+  ];
+}
+  var state = {
+    nameHead: 'Osoba',
+    showLabels: false,
+    cols: [],
+    rows: [],
+    palette: defaultPalette()
+  };
+  var brush = null;      // null | indeks palety | 'erase'
+  var cellEls = {};      // "rid:cid" -> button
+  var cur = null;        // {rid, cid} w edytorze
+  var ctx = null;        // {token, sha} po pobraniu z GitHuba
+  var dirty = false;
+
+  function getRow(rid){ return state.rows.find(function(r){ return r.id === rid; }); }
+  function getCell(rid, cid){ var r = getRow(rid); return (r && r.cells[cid]) || {}; }
+
+  function setStatus(t){ $('status').textContent = t; }
+  function setMsg(text, kind){ var m = $('msg'); m.className = kind || ''; m.textContent = text; }
+  function markDirty(){
+    dirty = true;
+    setStatus(ctx ? 'Są niezapisane zmiany. Kliknij „Zapisz do ' + ctx.path + '”.' : 'Zmiany nie są nigdzie zapisane. Pobierz tabelę z GitHuba, żeby móc ją zapisać.');
+  }
+
+  /* =====================================================
+     Format pliku dane.js
+     =====================================================
+     window.DANE_WIERSZE = [ ['Nazwa', {color,text}|null, ...], ... ];
+     opcjonalnie:
+     window.DANE_KOLUMNY = ['Tytuł 1', 'Tytuł 2', ...];
+     window.DANE_PALETA  = [{color:'#...', label:'...'}, ...];
+     window.DANE_NAGLOWEK = 'Osoba';
+  */
+  function parseDane(text){
+    var win = {};
+    // Wykonujemy plik z podmienionym "window", żeby nie zaśmiecać prawdziwego.
+    new Function('window', text)(win);
+    var data = win.DANE_WIERSZE;
+    if(!Array.isArray(data)) throw new Error('Plik nie definiuje window.DANE_WIERSZE jako tablicy.');
+    data.forEach(function(r, i){
+      if(!Array.isArray(r) || typeof r[0] !== 'string')
+        throw new Error('Wiersz ' + (i+1) + ' jest nieprawidłowy (oczekiwano [nazwa, komórka, …]).');
+    });
+    return {
+      rows: data,
+      titles: Array.isArray(win.DANE_KOLUMNY) ? win.DANE_KOLUMNY : [],
+      palette: Array.isArray(win.DANE_PALETA) ? win.DANE_PALETA : null,
+      nameHead: typeof win.DANE_NAGLOWEK === 'string' ? win.DANE_NAGLOWEK : null
+    };
+  }
+
+  function applyDane(d){
+    state.palette = defaultPalette();
+    state.nameHead = 'Osoba';
+    var n = d.rows.reduce(function(m, r){ return Math.max(m, r.length - 1); }, d.titles.length);
+    state.cols = [];
+    for(var i = 0; i < n; i++) state.cols.push({id: uid(), title: d.titles[i] || ('Kolumna ' + (i+1))});
+
+    state.rows = d.rows.map(function(r){
+      var cells = {};
+      state.cols.forEach(function(col, i){
+        var c = r[i+1];
+        if(c && typeof c === 'object'){
+          var o = {};
+          if(typeof c.color === 'string' && c.color) o.color = c.color;
+          if(typeof c.text === 'string' && c.text) o.text = c.text;
+          if(Object.keys(o).length) cells[col.id] = o;
+        }
+      });
+      return {id: uid(), name: r[0], cells: cells};
+    });
+
+    if(d.palette && d.palette.length){
+      state.palette = d.palette.filter(function(p){ return p && HEX.test(p.color || ''); })
+        .map(function(p){ return {color: p.color, label: String(p.label || '')}; });
+      if(!state.palette.length) state.palette = defaultPalette();
+    }
+    if(d.nameHead !== null) state.nameHead = d.nameHead;
+    brush = null;
+  }
+
+  function toDaneJs(){
+    var rows = state.rows.map(function(r){
+      var arr = [r.name];
+      state.cols.forEach(function(col){ arr.push(r.cells[col.id] || null); });
+      return '  ' + JSON.stringify(arr) + ',';
+    });
+    return [
+      'window.DANE_NAGLOWEK = ' + JSON.stringify(state.nameHead) + ';',
+      'window.DANE_KOLUMNY = ' + JSON.stringify(state.cols.map(function(c){ return c.title; })) + ';',
+      'window.DANE_PALETA = ' + JSON.stringify(state.palette) + ';',
+      'window.DANE_WIERSZE = [',
+      rows.join('\n'),
+      '];',
+      ''
+    ].join('\n');
+  }
+
+  /* =====================================================
+     GitHub
+     ===================================================== */
+  function fileUrl(path){ return 'https://api.github.com/repos/' + REPO + '/contents/' + path; }
+  function headers(token){
+    return {
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+  }
+  function b64ToText(b){
+    var bin = atob(b.replace(/\s/g, ''));
+    return new TextDecoder().decode(Uint8Array.from(bin, function(ch){ return ch.charCodeAt(0); }));
+  }
+  function textToB64(t){
+    var bytes = new TextEncoder().encode(t), bin = '';
+    for(var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    return btoa(bin);
+  }
+  async function ghError(r, hint){
+    var detail = '';
+    try{ detail = (await r.json()).message || ''; }catch(_){}
+    return new Error((hint || 'Błąd GitHuba (' + r.status + ').') + (detail ? ' [' + detail + ']' : ''));
+  }
+
+  $('f').addEventListener('submit', function(e){ e.preventDefault(); loadFile(); });
+
+  // Zmiana pliku w liście: jeśli tabela była już pobrana, od razu wczytuje wybrany plik.
+  $('file').addEventListener('change', function(){
+    if(!ctx) return;
+    if(dirty && !confirm('Masz niezapisane zmiany w „' + fileLabel(ctx.path) + '”. Wczytać inny plik i je porzucić?')){
+      $('file').value = ctx.path;
+      return;
+    }
+    loadFile();
+  });
+
+  async function loadFile(){
+    var token = $('token').value.trim();
+    var path = $('file').value;
+    if(!token){ setMsg('Wpisz token dostępu.', 'err'); return; }
+    $('load').disabled = true;
+    $('file').disabled = true;
+    setMsg('Pobieranie…');
+    try{
+      var r = await fetch(fileUrl(path), { headers: headers(token) });
+      if(!r.ok) throw await ghError(r,
+        r.status === 401 ? 'Nieprawidłowy lub wygasły token.' :
+        r.status === 404 ? 'Nie znaleziono pliku albo token nie ma dostępu do tego repozytorium.' : null);
+      var j = await r.json();
+      if(Array.isArray(j) || j.encoding !== 'base64')
+        throw new Error('To nie jest zwykły plik tekstowy (albo jest większy niż 1 MB).');
+
+      var data = parseDane(b64ToText(j.content));   // najpierw parsowanie, żeby błąd nie zniszczył stanu
+      applyDane(data);
+      ctx = { token: token, sha: j.sha, path: path };
+      dirty = false;
+      renderAll();
+      $('save').hidden = false;
+      $('save').textContent = 'Zapisz do ' + path;
+      setStatus('Wczytano ' + state.rows.length + ' wierszy z: ' + fileLabel(path) + '.');
+      setMsg('Pobrano.', 'ok');
+    }catch(err){
+      if(ctx) $('file').value = ctx.path;   // wróć do pliku, który faktycznie jest na ekranie
+      setMsg(err.message || 'Nie udało się połączyć z GitHubem.', 'err');
+    }finally{
+      $('load').disabled = false;
+      $('file').disabled = false;
+    }
+  }
+
+  $('save').addEventListener('click', async function(){
+    if(!ctx) return;
+    var btn = $('save');
+    btn.disabled = true;
+    setMsg('Zapisywanie…');
+    try{
+      var r = await fetch(fileUrl(ctx.path), {
+        method: 'PUT',
+        headers: Object.assign({'Content-Type': 'application/json'}, headers(ctx.token)),
+        body: JSON.stringify({
+          message: 'Aktualizacja ' + ctx.path,
+          content: textToB64(toDaneJs()),
+          sha: ctx.sha
+        })
+      });
+      if(!r.ok) throw await ghError(r,
+        r.status === 401 ? 'Nieprawidłowy lub wygasły token.' :
+        r.status === 403 ? 'Token nie ma uprawnienia do zapisu (Contents: Read and write).' :
+        r.status === 409 || r.status === 422 ? 'Plik na GitHubie zmienił się od pobrania. Pobierz go ponownie.' : null);
+      var j = await r.json();
+      ctx.sha = j.content.sha;
+      dirty = false;
+      setStatus('Zapisano na GitHubie: ' + fileLabel(ctx.path) + '.');
+      setMsg('Zapisano.', 'ok');
+    }catch(err){
+      setMsg(err.message || 'Nie udało się zapisać.', 'err');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  window.addEventListener('beforeunload', function(e){
+    if(dirty && ctx){ e.preventDefault(); e.returnValue = ''; }
+  });
+
+  /* =====================================================
+     Operacje na komórkach
+     ===================================================== */
+  function setCell(rid, cid, patch){
+    var r = getRow(rid); if(!r) return;
+    var c = Object.assign({}, r.cells[cid] || {}, patch);
+    Object.keys(c).forEach(function(k){ if(c[k] === undefined || c[k] === null || c[k] === '') delete c[k]; });
+    if(Object.keys(c).length) r.cells[cid] = c; else delete r.cells[cid];
+    refreshCell(rid, cid); markDirty();
+  }
+  function clearCell(rid, cid){
+    var r = getRow(rid); if(!r) return;
+    delete r.cells[cid]; refreshCell(rid, cid); markDirty();
+  }
+  function applyBrush(rid, cid){
+    if(brush === null) return;
+    if(brush === 'erase') clearCell(rid, cid);
+    else setCell(rid, cid, {color: state.palette[brush].color});
+  }
+
+  function paintCell(btn, cell){
+    cell = cell || {};
+    var label = '';
+    if(!cell.text && state.showLabels && cell.color){
+      var m = state.palette.find(function(p){ return p.color.toLowerCase() === cell.color.toLowerCase(); });
+      if(m) label = m.label;
+    }
+    var ok = HEX.test(cell.color || '');
+    btn.style.backgroundColor = ok ? cell.color : '';
+    btn.style.color = ok ? contrast(cell.color) : '';
+    btn.classList.toggle('has-color', ok);
+    btn.querySelector('.txt').textContent = cell.text || label || '';
+  }
+  function refreshCell(rid, cid){
+    var b = cellEls[rid + ':' + cid]; if(b) paintCell(b, getCell(rid, cid));
+  }
+  function refreshAllCells(){
+    state.rows.forEach(function(r){ state.cols.forEach(function(c){ refreshCell(r.id, c.id); }); });
+  }
+
+  /* =====================================================
+     Render tabeli
+     ===================================================== */
+  function renderTable(){
+    cellEls = {};
+    var t = $('tbl'); t.textContent = '';
+
+    var hr = h('tr');
+    hr.append(h('th', {class:'namecol'},
+      h('div', {class:'head'},
+        h('input', {class:'coltitle', value:state.nameHead, 'aria-label':'Nagłówek pierwszej kolumny',
+          oninput:function(e){ state.nameHead = e.target.value; markDirty(); }}))));
+
+    state.cols.forEach(function(col){
+      var del = h('button', {class:'x', type:'button', 'aria-label':'Usuń kolumnę'}, '×');
+      arm(del, 'Usunąć?', function(){
+        state.cols = state.cols.filter(function(c){ return c.id !== col.id; });
+        state.rows.forEach(function(r){ delete r.cells[col.id]; });
+        renderTable(); markDirty();
+      });
+      hr.append(h('th', {},
+        h('div', {class:'head'},
+          h('input', {class:'coltitle', value:col.title, 'aria-label':'Tytuł kolumny',
+            oninput:function(e){ col.title = e.target.value; markDirty(); }}),
+          del)));
+    });
+
+    hr.append(h('th', {class:'addcol'},
+      h('button', {type:'button', 'aria-label':'Dodaj kolumnę', title:'Dodaj kolumnę',
+        onclick:function(){
+          state.cols.push({id: uid(), title: 'Kolumna ' + (state.cols.length + 1)});
+          renderTable(); markDirty();
+          var ins = document.querySelectorAll('input.coltitle'); if(ins.length) ins[ins.length - 1].select();
+        }}, '+')));
+    t.append(h('thead', {}, hr));
+
+    var tb = h('tbody');
+    state.rows.forEach(function(row){
+      var del = h('button', {class:'x', type:'button', 'aria-label':'Usuń wiersz'}, '×');
+      arm(del, 'Usunąć?', function(){
+        state.rows = state.rows.filter(function(r){ return r.id !== row.id; });
+        renderTable(); markDirty();
+      });
+
+      var tr = h('tr');
+      tr.append(h('td', {class:'namecol'},
+        h('div', {class:'namewrap'},
+          h('input', {class:'name', value:row.name, placeholder:'Imię i nazwisko', 'aria-label':'Imię i nazwisko',
+            oninput:function(e){ row.name = e.target.value; markDirty(); }}),
+          del)));
+
+      state.cols.forEach(function(col){
+        var btn = h('button', {class:'cell', type:'button', 'aria-label':'Ustaw komórkę'}, h('span', {class:'txt'}));
+        btn.addEventListener('mousedown', function(e){
+          if(brush !== null && e.button === 0){ e.preventDefault(); applyBrush(row.id, col.id); }
+        });
+        btn.addEventListener('mouseenter', function(e){
+          if(brush !== null && e.buttons === 1) applyBrush(row.id, col.id);
+        });
+        btn.addEventListener('click', function(e){
+          // mousedown już zastosował pędzel; click bez myszy (dotyk, klawiatura) ma detail === 0 lub dotyk
+          if(brush !== null){ if(e.detail === 0 || e.pointerType === 'touch') applyBrush(row.id, col.id); }
+          else openEditor(row.id, col.id);
+        });
+        var pen = h('button', {class:'pen', type:'button', 'aria-label':'Edytuj komórkę', title:'Edytuj',
+          onclick:function(e){ e.stopPropagation(); openEditor(row.id, col.id); }}, '✎');
+        cellEls[row.id + ':' + col.id] = btn;
+        paintCell(btn, row.cells[col.id]);
+        tr.append(h('td', {}, h('div', {class:'cellwrap'}, btn, pen)));
+      });
+      tr.append(h('td', {class:'addcol'}));
+      tb.append(tr);
+    });
+    t.append(tb);
+
+    if(!state.rows.length){
+      var tr0 = h('tr');
+      tr0.append(h('td', {class:'empty', colspan:String(state.cols.length + 2)}, 'Brak wierszy. Kliknij „+ Dodaj osobę” albo pobierz dane z GitHuba.'));
+      tb.append(tr0);
+    }
+  }
+
+  /* =====================================================
+     Pędzel
+     ===================================================== */
+  function renderPalette(){
+    var pal = $('pal'); pal.textContent = '';
+    state.palette.forEach(function(p, i){
+      var sw = h('button', {class:'sw', type:'button', 'aria-pressed':String(brush === i),
+        'aria-label':'Pędzel: ' + p.label, title:p.label, style:'background:' + p.color,
+        onclick:function(){ brush = (brush === i) ? null : i; renderPalette(); }});
+      var lab = h('input', {class:'pal-label', value:p.label, 'aria-label':'Nazwa koloru',
+        oninput:function(e){ p.label = e.target.value; sw.title = p.label; markDirty(); },
+        onchange:refreshAllCells});
+      pal.append(h('div', {class:'pal-item'}, sw, lab));
+    });
+    pal.append(h('div', {class:'pal-item'},
+      h('button', {class:'eraser', type:'button', 'aria-pressed':String(brush === 'erase'),
+        onclick:function(){ brush = (brush === 'erase') ? null : 'erase'; renderPalette(); }}, 'Gumka')));
+
+    document.body.classList.toggle('painting', brush !== null);
+    $('hint').textContent = brush === null
+      ? 'Brak pędzla: kliknięcie komórki otwiera edytor.'
+      : (brush === 'erase'
+          ? 'Gumka: klikaj lub przeciągaj po komórkach, żeby je czyścić.'
+          : 'Pędzel „' + state.palette[brush].label + '”: klikaj lub przeciągaj po komórkach. Ołówek ✎ otwiera edytor.');
+  }
+
+  function renderAll(){
+    $('showLabels').checked = !!state.showLabels;
+    renderPalette();
+    renderTable();
+  }
+
+  /* =====================================================
+     Edytor komórki
+     ===================================================== */
+  var ed = $('ed');
+  function openEditor(rid, cid){
+    cur = {rid: rid, cid: cid};
+    var row = getRow(rid), col = state.cols.find(function(c){ return c.id === cid; });
+    var title = $('edTitle'); title.textContent = '';
+    title.append(document.createTextNode(row.name || 'Bez nazwy'), h('small', {}, col ? col.title : ''));
+
+    var sw = $('edSw'); sw.textContent = '';
+    state.palette.forEach(function(p){
+      sw.append(h('button', {class:'sw', type:'button', title:p.label,
+        style:'background:' + p.color + ';color:' + contrast(p.color),
+        onclick:function(){ setCell(cur.rid, cur.cid, {color:p.color}); syncEditor(); }}, p.label));
+    });
+    syncEditor();
+    if(!ed.open) ed.showModal();
+  }
+  function syncEditor(){
+    var c = getCell(cur.rid, cur.cid);
+    $('edText').value = c.text || '';
+    $('edCustom').value = HEX.test(c.color || '') ? c.color : '#3552d6';
+  }
+  $('edText').addEventListener('input', function(e){ setCell(cur.rid, cur.cid, {text: e.target.value}); });
+  $('edCustom').addEventListener('input', function(e){ setCell(cur.rid, cur.cid, {color: e.target.value}); });
+  $('edNone').addEventListener('click', function(){ setCell(cur.rid, cur.cid, {color: null}); syncEditor(); });
+  $('edClear').addEventListener('click', function(){ clearCell(cur.rid, cur.cid); syncEditor(); });
+  $('edDone').addEventListener('click', function(){ ed.close(); });
+  ed.addEventListener('click', function(e){ if(e.target === ed) ed.close(); });
+
+  /* =====================================================
+     Reszta interfejsu
+     ===================================================== */
+  $('showLabels').addEventListener('change', function(e){
+    state.showLabels = e.target.checked;
+    refreshAllCells();
+  });
+
+  $('addRow').addEventListener('click', function(){
+    state.rows.push({id: uid(), name: '', cells: {}});
+    renderTable(); markDirty();
+    var ins = document.querySelectorAll('input.name'); if(ins.length) ins[ins.length - 1].focus();
+  });
+
+  // Puszczenie przycisku myszy poza komórką nie zostawia nic "wciśniętego" – nic do sprzątania,
+  // bo malowanie opiera się na e.buttons, ale zostawiamy zabezpieczenie przed zaznaczaniem tekstu.
+  document.addEventListener('dragstart', function(e){ if(brush !== null) e.preventDefault(); });
+
+  /* start */
+  FILES.forEach(function(f){ $('file').append(h('option', {value:f.path}, f.label)); });
+  state.cols = [{id: uid(), title: 'Kolumna 1'}, {id: uid(), title: 'Kolumna 2'}, {id: uid(), title: 'Kolumna 3'}];
+  renderAll();
+})();
+</script>
+</body>
+</html>
