@@ -64,7 +64,7 @@ h1{margin:0 0 14px;font-size:30px;font-weight:700;letter-spacing:-.02em}
 .tools h2{margin:0;font-size:15px;font-weight:600}
 .hint{color:var(--muted);font-size:13px}
 .pal{display:flex;flex-wrap:wrap;gap:10px 12px}
-.pal-item{display:flex;flex-direction:column;gap:4px;width:84px}
+.pal-item{display:flex;flex-direction:column;gap:4px;width:120px}
 .sw{height:34px;border-radius:8px;border:2px solid transparent;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
 .sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
 .pal-label{width:100%;border:1px solid transparent;border-radius:6px;background:transparent;font-size:12.5px;padding:2px 4px;text-align:center;color:var(--muted)}
@@ -73,6 +73,9 @@ h1{margin:0 0 14px;font-size:30px;font-weight:700;letter-spacing:-.02em}
 .eraser{height:34px;border-radius:8px;border:1px dashed var(--muted);background:transparent;font-size:13px}
 .eraser[aria-pressed="true"]{border:2px solid var(--ink);background:var(--empty)}
 .opts{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:12px}
+
+
+/* procenty */
 
 /* tabela */
 .table-card{overflow:hidden}
@@ -121,7 +124,7 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
 .sw-grid .sw{height:40px;width:100%;font-size:11.5px;font-weight:600;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .row input[type=color]{width:42px;height:34px;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--card)}
-.ed input[type=text]{width:100%;height:38px;border:1px solid var(--line);border-radius:9px;background:var(--empty);padding:0 12px}
+.ed textarea{width:100%;height:56px;border:1px solid var(--line);border-radius:9px;background:var(--empty);padding:0 12px}
 .dfoot{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
 
 @media print{.loader,.tools,.foot-bar,.x,.pen,.addcol,.addrow{display:none!important}body{background:#fff}}
@@ -130,7 +133,7 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
 </head>
 <body>
 <div class="wrap">
-  <h1>Posłowie</h1>
+  <h1>Nasze Kontakty</h1>
 
   <form id="f" class="card loader">
     <div class="field" style="flex:0 1 210px;min-width:170px">
@@ -141,8 +144,8 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
       <label for="token">Token dostępu GitHub</label>
       <input id="token" type="password" autocomplete="off" required>
     </div>
-    <button type="submit" id="load" class="btn primary">Pobierz tabelę</button>
-    <button type="button" id="save" class="btn" hidden>Zapisz na GitHubie</button>
+    <button type="submit" id="load" class="btn primary">Synchronizuj</button>
+    <button type="button" id="save" class="btn" hidden>Zapisz</button>
     <p id="msg" role="status"></p>
   </form>
 
@@ -154,8 +157,20 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
     <div class="pal" id="pal"></div>
     <div class="opts">
       <input type="checkbox" id="showLabels">
-      <label for="showLabels">Pokaż w pustych komórkach nazwę koloru</label>
+      <label for="showLabels">Pokaż w pustych komórkach nazwę działania</label>
     </div>
+  </section>
+
+    
+  <section class="card tools" aria-label="Ukończenie">
+    <div class="tools-top">
+      <h2>Procenty</h2>
+    </div>
+      <h2>Liczba osób:  <span id="people-count"></span> </h2>
+      <h2>Liczba wysłanych e-maili:  <span id="emails-count"></span> </h2>
+      <h2>Odpowiedzi: <span id="replies-count"></span>, [<span id="emails-pct"></span> z wysłanych mejli], [<span id="send-emails-pct"></span> z ogółu]</h2>
+      <h2>Obecnie umowione spotkania: <span id="meetings-count"></span></h2>
+      <h2>Załatwione podpisy: <span id="signs-count"></span> [<span id="signs-prcnt"></span> z ogółu]</h2>
   </section>
 
   <section class="card table-card">
@@ -178,8 +193,8 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
       <button type="button" class="btn" id="edNone">Bez koloru</button>
     </div>
     <div class="lbl">Tekst lub emoji</div>
-    <input type="text" id="edText" maxlength="60" placeholder="np. ✅ albo „po 18:00”">
-    <div class="dfoot">
+    <textarea id="edText" rows="4"></textarea>
+      <div class="dfoot">
       <button type="button" class="btn" id="edClear">Wyczyść komórkę</button>
       <button type="button" class="btn primary" id="edDone">Gotowe</button>
     </div>
@@ -196,9 +211,10 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
   var REPO = 'MieszkoP/MemberOfPPPrivate';
   // Trzy predefiniowane pliki w repozytorium. Zmień ścieżki i nazwy wyświetlane tutaj.
   var FILES = [
-    {path:'dane.js',  label:'Lista 1 (dane.js)'},
-    {path:'dane2.js', label:'Lista 2 (dane2.js)'},
-    {path:'dane3.js', label:'Lista 3 (dane3.js)'}
+    {path:'dane.js',  label:'Poslowie'},
+    {path:'senatorowie.js', label:'Senatorowie'},
+    {path:'dziennikarze.js', label:'Dziennikarze'},
+    {path:'swiat_nauki.js', label:'Świat nauki'}
   ];
   function fileLabel(path){
     var f = FILES.find(function(x){ return x.path === path; });
@@ -259,9 +275,10 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
     {color:'#3C8DDE', label:'Wysłany e-mail'},
     {color:'#F2B134', label:'Odzew na e-mail'},
     {color:'#EE7B3A', label:'Umówione spotkanie'},
-    {color:'#2FB67C', label:'Odbyte spotkanie'}
+    {color:'#2FB67C', label:'Odbyte spotkanie'},
+    {color:'#b62f2f', label:'Uzyskany podpis'}
   ];
-}
+  }
   var state = {
     nameHead: 'Osoba',
     showLabels: false,
@@ -280,9 +297,45 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
 
   function setStatus(t){ $('status').textContent = t; }
   function setMsg(text, kind){ var m = $('msg'); m.className = kind || ''; m.textContent = text; }
+  function updateStats(){
+    var idx = {nothing : 0, sent: 1, reply: 2, meet: 3, done: 4, signed: 5};   // indeksy w state.palette
+    var colorOf = function(i){
+      var p = state.palette[i];
+      return p ? p.color.toLowerCase() : null;
+    };
+    var c = { nothing: colorOf(idx.nothing), sent: colorOf(idx.sent), reply: colorOf(idx.reply), meet: colorOf(idx.meet), done: colorOf(idx.done), signed: colorOf(idx.signed) };
+
+    var people = state.rows.length;
+    var sent = 0, replies = 0, meetings = 0, signs = 0;
+
+    state.rows.forEach(function(r){
+      state.cols.forEach(function(col){
+        var cell = r.cells[col.id];
+        if(!cell || !cell.color) return;
+        var k = cell.color.toLowerCase();
+        if(k !== c.nothing) sent++;
+        if((k !== c.nothing) && (k !== c.sent)) replies++;
+        if(k === c.meet) meetings++;
+        if(k === c.signed) signs++;
+      });
+    });
+
+    var pct = function(a, b){ return b ? Math.round(a / b * 100) + '%' : '0%'; };
+    var set = function(id, v){ var el = $(id); if(el) el.textContent = v; };
+
+    set('people-count', people);
+    set('emails-count', sent);
+    set('replies-count', replies);
+    set('emails-pct', pct(replies, people));
+    set('send-emails-pct', pct(replies, sent));
+    set('meetings-count', meetings);
+    set('signs-count', signs);
+    set('signs-prcnt', pct(signs, people));
+  }
   function markDirty(){
     dirty = true;
-    setStatus(ctx ? 'Są niezapisane zmiany. Kliknij „Zapisz do ' + ctx.path + '”.' : 'Zmiany nie są nigdzie zapisane. Pobierz tabelę z GitHuba, żeby móc ją zapisać.');
+    setStatus(ctx ? 'Są niezapisane zmiany. Kliknij „Zapisz”.' : 'Zmiany nie są nigdzie zapisane. Pobierz tabelę z GitHuba, żeby móc ją zapisać.');
+    updateStats();
   }
 
   /* =====================================================
@@ -316,7 +369,7 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
     state.palette = defaultPalette();
     state.nameHead = 'Osoba';
     var n = d.rows.reduce(function(m, r){ return Math.max(m, r.length - 1); }, d.titles.length);
-    state.cols = [];
+    state.cols = [ ];
     for(var i = 0; i < n; i++) state.cols.push({id: uid(), title: d.titles[i] || ('Kolumna ' + (i+1))});
 
     state.rows = d.rows.map(function(r){
@@ -419,7 +472,7 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
       dirty = false;
       renderAll();
       $('save').hidden = false;
-      $('save').textContent = 'Zapisz do ' + path;
+      $('save').textContent = 'Zapisz'
       setStatus('Wczytano ' + state.rows.length + ' wierszy z: ' + fileLabel(path) + '.');
       setMsg('Pobrano.', 'ok');
     }catch(err){
@@ -618,6 +671,7 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
     $('showLabels').checked = !!state.showLabels;
     renderPalette();
     renderTable();
+    updateStats();
   }
 
   /* =====================================================
@@ -644,6 +698,7 @@ dialog::backdrop{background:rgba(10,14,28,.5)}
     $('edText').value = c.text || '';
     $('edCustom').value = HEX.test(c.color || '') ? c.color : '#3552d6';
   }
+  
   $('edText').addEventListener('input', function(e){ setCell(cur.rid, cur.cid, {text: e.target.value}); });
   $('edCustom').addEventListener('input', function(e){ setCell(cur.rid, cur.cid, {color: e.target.value}); });
   $('edNone').addEventListener('click', function(){ setCell(cur.rid, cur.cid, {color: null}); syncEditor(); });
